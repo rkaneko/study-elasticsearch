@@ -34,7 +34,7 @@ Ref: [Installing Marvel](https://www.elastic.co/guide/en/elasticsearch/guide/cur
 ### Talking to Elasticsearch
 
 + Java を使う
-+ RESTful APIを使う
+l RESTful APIを使う
 
 ２つの手段がある。様々な言語でクライアントがある。
 汎用的に学習したいので、RESTfulを試してみる。
@@ -61,6 +61,60 @@ Content-Type: application/json; charset=UTF-8
     "count": 44432
 }
 ```
+
+### Document Oriented
+
+### [Finding Your Feet](https://www.elastic.co/guide/en/elasticsearch/guide/current/_finding_your_feet.html)
+
+Elasticsearchでできることをおおよそ理解するために、
+
+Employee Directoryを構築してみる
+
+ビジネス要件は以下の通り
+
++ 複数のタグや数字、文字列を含むことができるデータ
++ その従業員の完全な詳細を取得できる
++ 構造化された検索(ex: 30歳以上の従業員)
++ フルテキスト検索、複雑なフレーズによる検索
++ マッチしたドキュメントにおける部分的なテキストをハイライトして返す
++ データを分析できるダッシュボードを構築できる管理ができる
+
+### [Indexing Exployee Documents](https://www.elastic.co/guide/en/elasticsearch/guide/current/_indexing_employee_documents.html)
+
+まずは、従業員データのストア。
+
+一つのドキュメント(レコード)は一人の従業員データを表す。
+
+Elasticsearchでは、**データのストアすることをindexingと呼ぶ**。
+
+|          |          |          |          |         |
+|:---------|:---------|:---------|:---------|:--------|
+|RDB       | Databases|Tables    |Rows      |Columns  |
+|Elasticsearch|Indices|Types     |Documents |Fields   |
+
+Clusterは複数のIndicesを含める。
+
+#### ElasticsearchではIndexという言葉が複数定義されている。
+
++ Index (noun)
+  - RDBでいうdatabase
++ Index (verb)
+  - SQLでいうinsert
++ Inverted index
+  - data検索のためにB-treeのようなindexを作ること
+
+サンプルを整理すると、
+
+Elasticsearch clusterに`megacorp` index (database)を作り、このindexに
+`employee` type (table)を作る。
+
+```bash
+# 暗黙的に、indexとtypeも作られる /index/type/id のようにpathを並べる
+$ http PUT 127.0.0.1:9200/megacorp/employee/1 <json/to_index_a_sample_data.json
+```
+
+### [Retrieving a Document](https://www.elastic.co/guide/en/elasticsearch/guide/current/_retrieving_a_document.html)
+
 
 
 ## Plugins
