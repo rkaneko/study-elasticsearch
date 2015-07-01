@@ -1,0 +1,16 @@
+{
+  "query": {
+    "filtered": {
+      "filter": {
+        "range": {
+          "age": { "gt": 24 }
+        }
+      },
+      "query": {
+        "match": {
+          "last_name": "smith"
+        }
+      }
+    }
+  }
+}

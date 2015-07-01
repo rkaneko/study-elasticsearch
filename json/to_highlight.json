@@ -1,0 +1,12 @@
+{
+  "query": {
+    "match_phrase": {
+      "about": "rock climbing"
+    }
+  },
+  "highlight": {
+    "fields": {
+      "about": {}
+    }
+  }
+}

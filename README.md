@@ -46,7 +46,7 @@ Ref: [Talking to Elasticsearch]( https://www.elastic.co/guide/en/elasticsearch/g
 #### cluster内のdocumentの数をcountする
 
 ```bash
-$ http GET 127.0.0.1:9200/_count < json/to_count_the_number_of_documents_in_the_cluster.json
+$ http 127.0.0.1:9200/_count < json/to_count_the_number_of_documents_in_the_cluster.json
 
 HTTP/1.1 200 OK
 Content-Length: 63
@@ -115,6 +115,599 @@ $ http PUT 127.0.0.1:9200/megacorp/employee/1 <json/to_index_a_sample_data.json
 
 ### [Retrieving a Document](https://www.elastic.co/guide/en/elasticsearch/guide/current/_retrieving_a_document.html)
 
+次はデータ(Documents)をRetrieve。
+
+```bash
+$ http 127.0.0.1:9200/megacorp/employee/1
+```
+
+```json
+{
+    "id": "1",
+    "_index": "megacorp",
+    "_source": {
+        "about": "I love to go rock climbing",
+        "age": 25,
+        "first_name": "John",
+        "intersts": [
+            "sports",
+            "music"
+        ],
+        "last_name": "Smith"
+    },
+    "_type": "employee",
+    "_version": 1,
+    "found": true
+}
+```
+
+`PUT`, `GET`, `DELETE`, `HEAD` を使用することで、index, retrieve, delete, check existence ができる。
+
+### [Search Lite](https://www.elastic.co/guide/en/elasticsearch/guide/current/_search_lite.html)
+
+GETでDocumentsを取得できることはわかった。もっと発展したシンプルな検索を試してみる。
+
+```bash
+$ http 127.0.0.1:9200/megacorp/employee/_search
+```
+
+Documentsが全件取得できる。
+
+```json
+{
+    "_shards": {
+        "failed": 0,
+        "successful": 5,
+        "total": 5
+    },
+    "hits": {
+        "hits": [
+            {
+                "_id": "1",
+                "_index": "megacorp",
+                "_score": 1.0,
+                "_source": {
+                    "about": "I love to go rock climbing",
+                    "age": 25,
+                    "first_name": "John",
+                    "intersts": [
+                        "sports",
+                        "music"
+                    ],
+                    "last_name": "Smith"
+                },
+                "_type": "employee"
+            }
+        ],
+        "max_score": 1.0,
+        "total": 1
+    },
+    "timed_out": false,
+    "took": 2
+}
+```
+
+query検索も。
+
+
+```bash
+$ http 127.0.0.1:9200/megacorp/employee/_search q==last_name:Smith
+```
+
+```json
+{
+    "_shards": {
+        "failed": 0,
+        "successful": 5,
+        "total": 5
+    },
+    "hits": {
+        "hits": [
+            {
+                "_id": "1",
+                "_index": "megacorp",
+                "_score": 0.30685282,
+                "_source": {
+                    "about": "I love to go rock climbing",
+                    "age": 25,
+                    "first_name": "John",
+                    "intersts": [
+                        "sports",
+                        "music"
+                    ],
+                    "last_name": "Smith"
+                },
+                "_type": "employee"
+            }
+        ],
+        "max_score": 0.30685282,
+        "total": 1
+    },
+    "timed_out": false,
+    "took": 4
+}
+```
+
+### [Search with Query DSL](https://www.elastic.co/guide/en/elasticsearch/guide/current/_search_with_query_dsl.html)
+
+リッチでフレキシブルな検索のために、QueryDSLがある。
+
+```bash
+$ http 127.0.0.1:9200/megacorp/employee/_search <json/to_search_with_query_dsl.json
+```
+
+```json
+{
+    "_shards": {
+        "failed": 0,
+        "successful": 5,
+        "total": 5
+    },
+    "hits": {
+        "hits": [
+            {
+                "_id": "1",
+                "_index": "megacorp",
+                "_score": 0.30685282,
+                "_source": {
+                    "about": "I love to go rock climbing",
+                    "age": 25,
+                    "first_name": "John",
+                    "intersts": [
+                        "sports",
+                        "music"
+                    ],
+                    "last_name": "Smith"
+                },
+                "_type": "employee"
+            }
+        ],
+        "max_score": 0.30685282,
+        "total": 1
+    },
+    "timed_out": false,
+    "took": 2
+}
+```
+
+### [More-Complicated Searches](https://www.elastic.co/guide/en/elasticsearch/guide/current/_more_complicated_searches.html)
+
+ex)last_nameがSmithで、24歳以上の従業員を検索したい。
+
+```bash
+$ http 127.0.0.1:9200/megacorp/employee/_search <json/to_search_with_query_dsl_more_complicated.json
+```
+
+```json
+{
+    "_shards": {
+        "failed": 0,
+        "successful": 5,
+        "total": 5
+    },
+    "hits": {
+        "hits": [
+            {
+                "_id": "1",
+                "_index": "megacorp",
+                "_score": 0.30685282,
+                "_source": {
+                    "about": "I love to go rock climbing",
+                    "age": 25,
+                    "first_name": "John",
+                    "intersts": [
+                        "sports",
+                        "music"
+                    ],
+                    "last_name": "Smith"
+                },
+                "_type": "employee"
+            }
+        ],
+        "max_score": 0.30685282,
+        "total": 1
+    },
+    "timed_out": false,
+    "took": 56
+}
+```
+
+### [Full-Text Search](https://www.elastic.co/guide/en/elasticsearch/guide/current/_full_text_search.html)
+
+RDBでは困るような検索をやってみる。
+
+ただ、DSLのmatch構造に入れるだけ。
+
+```bash
+$ http 127.0.0.1:9200/megacorp/employee/_search <json/to_search_full_text.json
+```
+
+```json
+{
+    "_shards": {
+        "failed": 0,
+        "successful": 5,
+        "total": 5
+    },
+    "hits": {
+        "hits": [
+            {
+                "_id": "1",
+                "_index": "megacorp",
+                "_score": 0.16273327,
+                "_source": {
+                    "about": "I love to go rock climbing",
+                    "age": 25,
+                    "first_name": "John",
+                    "intersts": [
+                        "sports",
+                        "music"
+                    ],
+                    "last_name": "Smith"
+                },
+                "_type": "employee"
+            },
+            {
+                "_id": "2",
+                "_index": "megacorp",
+                "_score": 0.016878016,
+                "_source": {
+                    "about": "I like to collect rock albums",
+                    "age": 32,
+                    "first_name": "Jane",
+                    "intersts": [
+                        "music"
+                    ],
+                    "last_name": "Smith"
+                },
+                "_type": "employee"
+            }
+        ],
+        "max_score": 0.16273327,
+        "total": 2
+    },
+    "timed_out": false,
+    "took": 2
+}
+```
+
++ match構造の中に記述した値はor検索のよう。
++ 検索結果はmatchしたscore順にソートされる。
+
+### [Phrase Search](https://www.elastic.co/guide/en/elasticsearch/guide/current/_phrase_search.html)
+
+先ほどの例のように、ひとつひとつの語を検索するときは便利。しかし、フレーズ単位で検索したいときもある。
+
+`match_phrase`という構造を使う。
+
+```bash
+$ http 127.0.0.1:9200/megacorp/employee/_search <json/to_search_phrase.json
+```
+
+```json
+{
+    "_shards": {
+        "failed": 0,
+        "successful": 5,
+        "total": 5
+    },
+    "hits": {
+        "hits": [
+            {
+                "_id": "1",
+                "_index": "megacorp",
+                "_score": 0.23013961,
+                "_source": {
+                    "about": "I love to go rock climbing",
+                    "age": 25,
+                    "first_name": "John",
+                    "intersts": [
+                        "sports",
+                        "music"
+                    ],
+                    "last_name": "Smith"
+                },
+                "_type": "employee"
+            }
+        ],
+        "max_score": 0.23013961,
+        "total": 1
+    },
+    "timed_out": false,
+    "took": 37
+}
+```
+
+先ほどの`match`フレーズで指定したときとことなり、AND検索になっている。
+
+
+### [Highlighting Our Searches](https://www.elastic.co/guide/en/elasticsearch/guide/current/highlighting-intro.html)
+
+検索結果ユーザがなぜこの検索結果が返ってきたかを認識させるために、マッチした部分をハイライトしたい。
+
+`highlight`構造を使う。
+
+```bash
+$ http 127.0.0.1:9200/megacorp/employee/_search <json/to_highlight.json
+```
+
+```json
+{
+    "_shards": {
+        "failed": 0,
+        "successful": 5,
+        "total": 5
+    },
+    "hits": {
+        "hits": [
+            {
+                "_id": "1",
+                "_index": "megacorp",
+                "_score": 0.23013961,
+                "_source": {
+                    "about": "I love to go rock climbing",
+                    "age": 25,
+                    "first_name": "John",
+                    "intersts": [
+                        "sports",
+                        "music"
+                    ],
+                    "last_name": "Smith"
+                },
+                "_type": "employee",
+                "highlight": {
+                    "about": [
+                        "I love to go <em>rock</em> <em>climbing</em>"
+                    ]
+                }
+            }
+        ],
+        "max_score": 0.23013961,
+        "total": 1
+    },
+    "timed_out": false,
+    "took": 208
+}
+```
+
+match部分が`<em>`Tagで囲まれれた結果が返ってくる。
+もっと詳しく知りたい場合は、[Highlighting](https://www.elastic.co/guide/en/elasticsearch/reference/current/search-request-highlighting.html)の章で。
+
+
+### [Analytics](https://www.elastic.co/guide/en/elasticsearch/guide/current/_analytics.html)
+
+分析のための、SQLの`GROUP BY`に似ているが、もっと強力な`aggregations`機能を見ていく。
+
+```bash
+$ http 127.0.0.1:9200/megacorp/employee/_search <json/to_use_aggregations.json
+```
+
+```json
+{
+    "_shards": {
+        "failed": 0,
+        "successful": 5,
+        "total": 5
+    },
+    "aggregations": {
+        "all_interests": {
+            "buckets": [
+                {
+                    "doc_count": 2,
+                    "key": "music"
+                },
+                {
+                    "doc_count": 1,
+                    "key": "forestry"
+                },
+                {
+                    "doc_count": 1,
+                    "key": "sports"
+                }
+            ],
+            "doc_count_error_upper_bound": 0,
+            "sum_other_doc_count": 0
+        }
+    },
+    "hits": {
+        "hits": [
+            {
+                "_id": "1",
+                "_index": "megacorp",
+                "_score": 1.0,
+                "_source": {
+                    "about": "I love to go rock climbing",
+                    "age": 25,
+                    "first_name": "John",
+                    "interests": [
+                        "sports",
+                        "music"
+                    ],
+                    "last_name": "Smith"
+                },
+                "_type": "employee"
+            },
+            {
+                "_id": "2",
+                "_index": "megacorp",
+                "_score": 1.0,
+                "_source": {
+                    "about": "I like to collect rock albums",
+                    "age": 32,
+                    "first_name": "Jane",
+                    "interests": [
+                        "music"
+                    ],
+                    "last_name": "Smith"
+                },
+                "_type": "employee"
+            },
+            {
+                "_id": "3",
+                "_index": "megacorp",
+                "_score": 1.0,
+                "_source": {
+                    "about": "I like to build cabinets",
+                    "age": 35,
+                    "first_name": "Douglas",
+                    "interests": [
+                        "forestry"
+                    ],
+                    "last_name": "Fir"
+                },
+                "_type": "employee"
+            }
+        ],
+        "max_score": 1.0,
+        "total": 3
+    },
+    "timed_out": false,
+    "took": 332
+}
+```
+
+`doc_count`がカテゴリごとに計算された構造が返ってくる。
+
+
+また、`aggregations`は入れ子にもできる。
+
+```bash
+$ http 127.0.0.1:9200/megacorp/employee/_search <json/to_use_hierarchical_aggregations.json
+```
+
+```json
+{
+    "_shards": {
+        "failed": 0,
+        "successful": 5,
+        "total": 5
+    },
+    "aggregations": {
+        "all_interests": {
+            "buckets": [
+                {
+                    "avg_age": {
+                        "value": 28.5
+                    },
+                    "doc_count": 2,
+                    "key": "music"
+                },
+                {
+                    "avg_age": {
+                        "value": 35.0
+                    },
+                    "doc_count": 1,
+                    "key": "forestry"
+                },
+                {
+                    "avg_age": {
+                        "value": 25.0
+                    },
+                    "doc_count": 1,
+                    "key": "sports"
+                }
+            ],
+            "doc_count_error_upper_bound": 0,
+            "sum_other_doc_count": 0
+        }
+    },
+    "hits": {
+        "hits": [
+            {
+                "_id": "1",
+                "_index": "megacorp",
+                "_score": 1.0,
+                "_source": {
+                    "about": "I love to go rock climbing",
+                    "age": 25,
+                    "first_name": "John",
+                    "interests": [
+                        "sports",
+                        "music"
+                    ],
+                    "last_name": "Smith"
+                },
+                "_type": "employee"
+            },
+            {
+                "_id": "2",
+                "_index": "megacorp",
+                "_score": 1.0,
+                "_source": {
+                    "about": "I like to collect rock albums",
+                    "age": 32,
+                    "first_name": "Jane",
+                    "interests": [
+                        "music"
+                    ],
+                    "last_name": "Smith"
+                },
+                "_type": "employee"
+            },
+            {
+                "_id": "3",
+                "_index": "megacorp",
+                "_score": 1.0,
+                "_source": {
+                    "about": "I like to build cabinets",
+                    "age": 35,
+                    "first_name": "Douglas",
+                    "interests": [
+                        "forestry"
+                    ],
+                    "last_name": "Fir"
+                },
+                "_type": "employee"
+            }
+        ],
+        "max_score": 1.0,
+        "total": 3
+    },
+    "timed_out": false,
+    "took": 31
+}
+```
+
+`interests`fieldでカテゴリ分けされた、ドキュメントにおける`age`fieldの平均値が得られる。
+この機能の限界は空のようだよ。
+
+### [Tutorial Conclusion](https://www.elastic.co/guide/en/elasticsearch/guide/current/_tutorial_conclusion.html)
+
+まだまだ紹介しきれない機能がある。
+
++ suggestions
++ geolocation
++ percolation
++ fuzzy and partial matching
+
+それからパフォーマンスについても。
+
+### [Distributed Nature](https://www.elastic.co/guide/en/elasticsearch/guide/current/_distributed_nature.html)
+
+数百のサーバにスケールするとき、ペタバイトのデータを扱うときについて。
+Elasticsearchは分散を意識して生み出されている。分散における複雑さを隠ぺいしようと試みている。
+
+Elasticsearchの中で自動的に行われる操作は次の通り。
+
++ Documentsの異なるContainers, shardsへのパーティショニング。単一もしくは複数のnodeに保存される。
++ インデクシングや検索負荷を分散するために、クラスターの中でnodeをまたいでshardsのバランスをとる。
++ データロスやハードの故障に備えて、データの冗長化(shardsの複製)。
++ クラスター内のすべてのnodeからのリクエストをあるべきデータを保持するnodeにルーティング。
++ nodeロスからリカバリのためにshardsの再分配や、clusterをより大きくするために新しいnodeをシームレスに統合する。
+
+つぎの章に詳しく書いてある。
+
++ [Life Inside a Cluster](https://www.elastic.co/guide/en/elasticsearch/guide/current/distributed-cluster.html)
++ [Distributed Document Store](https://www.elastic.co/guide/en/elasticsearch/guide/current/distributed-docs.html)
++ [Distributed Search Execution](https://www.elastic.co/guide/en/elasticsearch/guide/current/distributed-search.html)
++ [Inside a Shard](https://www.elastic.co/guide/en/elasticsearch/guide/current/inside-a-shard.html)
+
+---
+
+Next ?
+
++ [Mapping and Analysis](https://www.elastic.co/guide/en/elasticsearch/guide/current/mapping-analysis.html)
++ [Modeling Your Data](https://www.elastic.co/guide/en/elasticsearch/guide/current/modeling-your-data.html)
 
 
 ## Plugins
