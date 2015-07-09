@@ -16,6 +16,28 @@ Elasticsearch + Kibana 調査メモ
 
 + [Official doc](https://www.elastic.co/guide/en/elasticsearch/reference/current/_installation.html)
 
+#### Version確認
+
+```bash
+$ http GET 127.0.0.1:9200/
+```
+
+```json
+{
+    "cluster_name": "elasticsearch",
+    "name": "Black Fox",
+    "status": 200,
+    "tagline": "You Know, for Search",
+    "version": {
+        "build_hash": "62ff9868b4c8a0c45860bebb259e21980778ab1c",
+        "build_snapshot": false,
+        "build_timestamp": "2015-04-27T09:21:06Z",
+        "lucene_version": "4.10.4",
+        "number": "1.5.2"
+    }
+}
+```
+
 **TODO automation with ansible**
 
 ### Marvel (Kibana?)
