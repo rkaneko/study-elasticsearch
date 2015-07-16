@@ -1,0 +1,8 @@
+{
+  "title": "Relationships",
+  "body": "It's complicated...",
+  "user": {
+    "id": 1,
+    "name": "John Smith"
+  }
+}

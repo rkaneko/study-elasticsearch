@@ -726,10 +726,280 @@ Elasticsearchの中で自動的に行われる操作は次の通り。
 
 ---
 
-Next ?
+### [Modeling Your Data](https://www.elastic.co/guide/en/elasticsearch/guide/current/modeling-your-data.html)
 
+Elasticsearchは違う野獣だ。とくに、SQL界隈から期待人ならそう感じる。多くの利点が生まれる。
+
++ scale
++ real-timeに近い検索
++ 大量のデータにまたがった分析
+
+しかし、マジックではない。Elasticsearchから多くを得るには、どのように動くか、どのように必要なことを実現するかを理解する必要がある。
+
+エンティティ間のリレーションを扱うことは、専用のリレーショナルストアを利用するほど明確ではない。RDBの黄金ルール:正規化はElasticsearchには
+適用できない。
+
+利用できるアプローチの賛否両論を議論していく。
+
+スケールについて議論するうえで、システムにおけるデータの流れを考える必要があり、それに従ってデータモデルをデザインする必要がある。
+ログイベントやソーシャルネットワークストリームのような時間軸ベースのデータは静的なドキュメントコレクションとは異なるアプローチが必要となる。
+
+
+### [Handling Relationships](https://www.elastic.co/guide/en/elasticsearch/guide/current/relations.html)
+
+RDBはリレーションマネージをすることに特化してデザインされている。
+
++ PKによってエンティティ(or row) はユニークとなる。
++ エンティティは正規化される。ユニークエンティティのデータは一度だけストアされ、関連テーブルはPKだけをストアする。エンティティデータの修正はひとつの場所ないで行われなければならない。
++ クロスエンティティ検索のためにクエリ発行時にエンティth値はジョインされる。
++ 1つのエンティティの変更はACID。
++ ほとんどのRDBは複数エンティティにまたがったACIDトランザクションをサポートしている。
+
+しかし、RDBはフルテキストサーチのサポートが弱い。JOINのコストも高い。異なるハードウェアにおけるJOINはとても高価で実用的でない。これはひとつのサーバに
+ストアできるデータ量のリミットを生む。
+
+ElasticsearchはNOSQLのように、フラットなものとして扱う。一つのdocumentは検索にマッチするかどうかを決めるのに必要な情報をすべて含むべき。
+
+**Elasticsearchにおける一つのdocumentの変更はACID。しかし、複数ドキュメントを含むトランザクションではACIDではない。一つのトランザクションが失敗したときに、ひとつ前の状態に戻すロールバックの方法はない**。
+
+FlatWorldの利点
+
++ インデクシングが高速でロックがない。
++ 検索が高速でロックがない。
++ それぞれのdocumentは独立しているので、大量のデータの複数ノードへの拡張ができる。
+
+しかし、リレーションには問題がある、FlatWorkdと実世界のギャップをうめるためにbridgeが必要。Elasticsearchにおけるリレーショナルデータを扱うための4つの共通したテクニックは以下。
+
++ Application-side joins
++ Data denormalization
++ Nested objects
++ Parent/child relationships
+
+### [Application-side Joins](https://www.elastic.co/guide/en/elasticsearch/guide/current/application-joins.html)
+
+アプリケーション内でjoinを実装することでrelational databaseをemulateできる。
+
+```bash
+$ http PUT 127.0.0.1:9200/my_index/user/1 <json/join_user.json
+HTTP/1.1 201 Created
+Content-Length: 74
+Content-Type: application/json; charset=UTF-8
+
+{
+    "_id": "1",
+    "_index": "my_index",
+    "_type": "user",
+    "_version": 1,
+    "created": true
+}
+
+$ http PUT 127.0.0.1:9200/my_index/blogpost/2 <json/join_blog_post.json
+HTTP/1.1 201 Created
+Content-Length: 78
+Content-Type: application/json; charset=UTF-8
+
+{
+    "_id": "2",
+    "_index": "my_index",
+    "_type": "blogpost",
+    "_version": 1,
+    "created": true
+}
+```
+
+ユーザIDが1のユーザによってポストされたBlogを検索するときは、次のようにする。
+
+```bash
+$ http 127.0.0.1:9200/my_index/blogpost/_search <json/search_emulate_join.json                                                                  [14/98]HTTP/1.1 200 OK
+Content-Length: 273
+Content-Type: application/json; charset=UTF-8
+
+{
+    "_shards": {
+        "failed": 0,
+        "successful": 5,
+        "total": 5
+    },
+    "hits": {
+        "hits": [
+            {
+                "_id": "2",
+                "_index": "my_index",
+                "_score": 1.0,
+                "_source": {
+                    "body": "It's complicated...",
+                    "title": "Relationships",
+                    "user": 1
+                },
+                "_type": "blogpost"
+            }
+        ],
+        "max_score": 1.0,
+        "total": 1
+    },
+    "timed_out": false,
+    "took": 50
+}
+```
+
+Johnという名前のユーザによってポストされたBlogを検索するには、2つのクエリを必要とする。
+
+```bash
+$ http 127.0.0.1:9200/my_index/user/_search <json/search_by_name_john_1st_query.json                                                           [14/184]HTTP/1.1 200 OK
+Content-Length: 284
+Content-Type: application/json; charset=UTF-8
+
+{
+    "_shards": {
+        "failed": 0,
+        "successful": 5,
+        "total": 5
+    },
+    "hits": {
+        "hits": [
+            {
+                "_id": "1",
+                "_index": "my_index",
+                "_score": 0.19178301,
+                "_source": {
+                    "dob": "1970/10/24",
+                    "email": "john@smith.com",
+                    "name": "John Smith"
+                },
+                "_type": "user"
+            }
+        ],
+        "max_score": 0.19178301,
+        "total": 1
+    },
+    "timed_out": false,
+    "took": 9
+}
+
+$ http 127.0.0.1:9200/my_index/blogpost/_search <json/search_by_name_john_2nd_query.json                                                       [14/218]HTTP/1.1 200 OK
+Content-Length: 272
+Content-Type: application/json; charset=UTF-8
+
+{
+    "_shards": {
+        "failed": 0,
+        "successful": 5,
+        "total": 5
+    },
+    "hits": {
+        "hits": [
+            {
+                "_id": "2",
+                "_index": "my_index",
+                "_score": 1.0,
+                "_source": {
+                    "body": "It's complicated...",
+                    "title": "Relationships",
+                    "user": 1
+                },
+                "_type": "blogpost"
+            }
+        ],
+        "max_score": 1.0,
+        "total": 1
+    },
+    "timed_out": false,
+    "took": 3
+}
+```
+
+この手法のメリットは、データが正規化されていること、デメリットはJOIN　documentsを検索する度に余分なクエリが走ること。
+
+この例では、Johnというユーザが1人しかいなかったが、現実世界のアプリでは、複数人いることが考えられる。よってJohnによるBlogポストを
+検索するのに、非常に多くの時間がかかりうる。
+
+このアプローチで向いているのは、ユーザエンティティのdocumentが少なく、めったに変更されないようなとき。このようなときは、キャッシングして1つ目クエリを走らせるのを避けられる。
+
+
+### [Denormalizing Your Data](https://www.elastic.co/guide/en/elasticsearch/guide/current/denormalization.html)
+
+Elasticsearchから検索をもっともよくする方法は、データをindexするときに、denormalizeすること。
+データの冗長なコピーを各documentに持たせることは、joinの手間を排除する。
+
+例えば、指定したユーザ名のユーザがポストしたBlogを検索したいときは、Blog　documentにユーザ名を持たせることで検索することができる。
+
+```bash
+$ http 127.0.0.1:9200/denormalize_index/user/1 <json/denormalizing-your-data/put_user.json
+HTTP/1.1 201 Created
+Content-Length: 83
+Content-Type: application/json; charset=UTF-8
+
+{
+    "_id": "1",
+    "_index": "denormalize_index",
+    "_type": "user",
+    "_version": 1,
+    "created": true
+}
+
+$ http 127.0.0.1:9200/denormalize_index/blogpost/2 <json/denormalizing-your-data/put_blogpost_with_user.json
+HTTP/1.1 201 Created
+Content-Length: 87
+Content-Type: application/json; charset=UTF-8
+
+{
+    "_id": "2",
+    "_index": "denormalize_index",
+    "_type": "blogpost",
+    "_version": 1,
+    "created": true
+}
+```
+
+Johnと呼ばれるユーザによってポストされたrelationshipsについてのBlogを検索する。
+
+```bash
+$ http 127.0.0.1:9200/denormalize_index/blogpost/_search <json/denormalizing-your-data/search_by_user_name.json
+HTTP/1.1 200 OK
+Content-Length: 337
+Content-Type: application/json; charset=UTF-8
+
+{
+    "_shards": {
+        "failed": 0,
+        "successful": 5,
+        "total": 5
+    },
+    "hits": {
+        "hits": [
+            {
+                "_id": "2",
+                "_index": "denormalize_index",
+                "_score": 0.35258877,
+                "_source": {
+                    "body": "It's complicated...",
+                    "title": "Relationships",
+                    "user": {
+                        "id": 1,
+                        "name": "John Smith"
+                    }
+                },
+                "_type": "blogpost"
+            }
+        ],
+        "max_score": 0.35258877,
+        "total": 1
+    },
+    "timed_out": false,
+    "took": 7
+}
+```
+
+denormalizeの利点はスピード。コスト高なJOINが不要。
+
+### [Field Collapsing](https://www.elastic.co/guide/en/elasticsearch/guide/current/top-hits.html)
+
+
+
+
+---
+Next?
 + [Mapping and Analysis](https://www.elastic.co/guide/en/elasticsearch/guide/current/mapping-analysis.html)
-+ [Modeling Your Data](https://www.elastic.co/guide/en/elasticsearch/guide/current/modeling-your-data.html)
 
 
 ## Plugins

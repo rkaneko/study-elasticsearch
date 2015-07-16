@@ -1,0 +1,9 @@
+{
+  "query": {
+    "filtered": {
+      "filter": {
+        "term": { "user": 1 }
+      }
+    }
+  }
+}

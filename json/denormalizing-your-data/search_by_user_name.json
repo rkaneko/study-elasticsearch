@@ -1,0 +1,10 @@
+{
+  "query": {
+    "bool": {
+      "must": [
+        { "match": { "title": "relationships" } },
+        { "match": { "user.name": "John" }}
+      ]
+    }
+  }
+}
